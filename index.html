@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shove.io - Прототип</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0f0c1b;
+            color: #fff;
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff007f;
+            display: flex;
+            gap: 30px;
+        }
+        canvas {
+            border: 4px solid #ff007f;
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255, 0, 127, 0.4);
+            background: #171426;
+        }
+        .shop-alert {
+            position: absolute;
+            bottom: 20px;
+            color: #555;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>Живых врагов: <span id="enemiesCount">5</span></div>
+        <div>Монеты (Баланс): <span id="coins">0</span> 💰</div>
+    </div>
+
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+    
+    <div class="shop-alert">[Здесь будет кнопка: "Посмотри рекламу — получи х2 монет"]</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const enemiesUI = document.getElementById("enemiesCount");
+        const coinsUI = document.getElementById("coins");
+
+        const arena = { x: 300, y: 300, radius: 280 };
+        let coins = 0;
+
+        // Класс игрока и ботов
+        class Entity {
+            constructor(x, y, radius, color, isPlayer = false) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.isPlayer = isPlayer;
+                this.vx = 0; // Скорость по X
+                this.vy = 0; // Скорость по Y
+                this.mass = radius; 
+                this.alive = true;
+            }
+
+            update() {
+                if (!this.alive) return;
+
+                if (this.isPlayer) {
+                    // Игрок стремится к мышке
+                    let dx = mouse.x - this.x;
+                    let dy = mouse.y - this.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 5) {
+                        this.vx += (dx / dist) * 0.4;
+                        this.vy += (dy / dist) * 0.4;
+                    }
+                } else {
+                    // Боты глупо хаотично бегают и толкаются
+                    if (Math.random() < 0.05) {
+                        this.vx += (Math.random() - 0.5) * 2;
+                        this.vy += (Math.random() - 0.5) * 2;
+                    }
+                }
+
+                // Трение (замедление)
+                this.vx *= 0.95;
+                this.vy *= 0.95;
+
+                // Движение
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Проверка вылета с арены
+                let distToCenter = Math.sqrt((this.x - arena.x)**2 + (this.y - arena.y)**2);
+                if (distToCenter > arena.radius) {
+                    this.alive = false;
+                    if (!this.isPlayer) {
+                        coins += 10; // Получаем монеты за выбитого бота!
+                        coinsUI.innerText = coins;
+                    } else {
+                        alert("Тебя столкнули! Игра перезапустится. Интегрируй сюда рекламу возрождения!");
+                        resetGame();
+                    }
+                }
+            }
+
+            draw() {
+                if (!this.alive) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+            }
+        }
+
+        let player;
+        let entities = [];
+        let mouse = { x: 300, y: 300 };
+
+        function resetGame() {
+            player = new Entity(300, 300, 20, "#00ffcc", true);
+            entities = [player];
+            for (let i = 0; i < 5; i++) {
+                entities.push(new Entity(
+                    200 + Math.random() * 200,
+                    200 + Math.random() * 200,
+                    18,
+                    "#ff3366"
+                ));
+            }
+        }
+
+        // Обработка столкновений тел (Элементарная физика импульса)
+        function handleCollisions() {
+            for (let i = 0; i < entities.length; i++) {
+                for (let j = i + 1; j < entities.length; j++) {
+                    let e1 = entities[i];
+                    let e2 = entities[j];
+                    if (!e1.alive || !e2.alive) continue;
+
+                    let dx = e2.x - e1.x;
+                    let dy = e2.y - e1.y;
+                    let dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < e1.radius + e2.radius) {
+                        // Толкаем их в разные стороны
+                        let overlap = (e1.radius + e2.radius) - dist;
+                        let nx = dx / dist;
+                        let ny = dy / dist;
+
+                        e1.x -= nx * overlap * 0.5;
+                        e1.y -= ny * overlap * 0.5;
+                        e2.x += nx * overlap * 0.5;
+                        e2.y += ny * overlap * 0.5;
+
+                        // Передача силы удара (отскок)
+                        let kx = e1.vx - e2.vx;
+                        let ky = e1.vy - e2.vy;
+                        let p = 2 * (nx * kx + ny * ky) / (e1.mass + e2.mass);
+
+                        e1.vx -= p * e2.mass * nx * 1.5; // 1.5 - коэффициент упругости (усиление толчка)
+                        e1.vy -= p * e2.mass * ny * 1.5;
+                        e2.vx += p * e1.mass * nx * 1.5;
+                        e2.vy += p * e1.mass * ny * 1.5;
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            let rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        });
+
+        function gameLoop() {
+            // Очистка
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Отрисовка арены
+            ctx.beginPath();
+            ctx.arc(arena.x, arena.y, arena.radius, 0, Math.PI * 2);
+            ctx.fillStyle = "#1b1830";
+            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = "#4a2574";
+            ctx.stroke();
+
+            // Обновление и отрисовка персонажей
+            let aliveEnemies = 0;
+            entities.forEach(e => {
+                e.update();
+                e.draw();
+                if (!e.isPlayer && e.alive) aliveEnemies++;
+            });
+
+            handleCollisions();
+            enemiesUI.innerText = aliveEnemies;
+
+            if (aliveEnemies === 0) {
+                alert("Победа! Вы выкинули всех с арены! Заработано золота: " + coins);
+                resetGame();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        resetGame();
+        gameLoop();
+    </script>
+</body>
+</html>
