@@ -93,10 +93,12 @@
                 this.x = x; this.y = y; this.radius = radius;
                 this.isPlayer = isPlayer; this.skinId = skinId;
                 this.vx = 0; this.vy = 0; this.mass = radius; this.alive = true;
+                this.hitCooldown = 0;
             }
 
             update() {
                 if (!this.alive) return;
+                if (this.hitCooldown > 0) this.hitCooldown--;
 
                 if (this.isPlayer) {
                     if (isPointerDown) {
@@ -159,11 +161,9 @@
                 ctx.save();
                 ctx.translate(this.x - camX, this.y - camY);
 
-                // ====== ГРАФИЧЕСКИЙ МАРКЕР ИГРОКА ======
                 if (this.isPlayer) {
                     const pulse = 1 + Math.sin(time * 0.15) * 0.12;
 
-                    // Внешнее пульсирующее золотое кольцо
                     ctx.beginPath();
                     ctx.arc(0, 0, (this.radius + 12) * pulse, 0, Math.PI * 2);
                     ctx.strokeStyle = "rgba(255, 213, 79, 0.9)";
@@ -173,26 +173,24 @@
                     ctx.stroke();
                     ctx.shadowBlur = 0;
 
-                    // Второе тонкое кольцо (вращающееся)
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius + 18, time * 0.05, time * 0.05 + Math.PI * 1.4);
                     ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
                     ctx.lineWidth = 2;
                     ctx.stroke();
 
-                    // Прыгающая стрелка-указатель сверху
                     const bob = Math.sin(time * 0.12) * 6;
                     const arrowY = -this.radius - 28 + bob;
                     const arrowSize = 12;
 
                     ctx.beginPath();
-                    ctx.moveTo(0, arrowY + arrowSize);         // острие стрелки (снизу)
-                    ctx.lineTo(-arrowSize * 0.9, arrowY);       // левый угол
-                    ctx.lineTo(-arrowSize * 0.35, arrowY);      // внутрь
-                    ctx.lineTo(-arrowSize * 0.35, arrowY - arrowSize); // вверх
-                    ctx.lineTo(arrowSize * 0.35, arrowY - arrowSize);  // вправо
-                    ctx.lineTo(arrowSize * 0.35, arrowY);       // вниз
-                    ctx.lineTo(arrowSize * 0.9, arrowY);        // правый угол
+                    ctx.moveTo(0, arrowY + arrowSize);
+                    ctx.lineTo(-arrowSize * 0.9, arrowY);
+                    ctx.lineTo(-arrowSize * 0.35, arrowY);
+                    ctx.lineTo(-arrowSize * 0.35, arrowY - arrowSize);
+                    ctx.lineTo(arrowSize * 0.35, arrowY - arrowSize);
+                    ctx.lineTo(arrowSize * 0.35, arrowY);
+                    ctx.lineTo(arrowSize * 0.9, arrowY);
                     ctx.closePath();
                     ctx.fillStyle = "#ffd54f";
                     ctx.strokeStyle = "#000";
@@ -204,7 +202,6 @@
                     ctx.stroke();
                 }
 
-                // Тело персонажа
                 ctx.beginPath();
                 ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = skin.color;
@@ -214,7 +211,6 @@
                 ctx.stroke();
                 ctx.closePath();
 
-                // Мордочка-эмодзи
                 ctx.fillStyle = "#000";
                 ctx.font = `${this.radius * 1.1}px Arial`;
                 ctx.textAlign = "center";
@@ -341,15 +337,51 @@
 
                         const kx = e1.vx - e2.vx, ky = e1.vy - e2.vy;
                         const p = 2 * (nx * kx + ny * ky) / (e1.mass + e2.mass);
+                        const impact = Math.abs(p);
 
                         e1.vx -= p * e2.mass * nx * 2.0; e1.vy -= p * e2.mass * ny * 2.0;
                         e2.vx += p * e1.mass * nx * 2.0; e2.vy += p * e1.mass * ny * 2.0;
 
                         const midX = (e1.x + e2.x) / 2, midY = (e1.y + e2.y) / 2;
-                        if (Math.abs(p) > 1.2 && Math.random() < 0.35) {
-                            spawnRing(midX, midY, "#ffffff", 30);
-                            spawnBurst(midX, midY, "#ff007f", 5, 4);
-                            if (e1.isPlayer || e2.isPlayer) shake = Math.max(shake, 3);
+                        const isPlayerInvolved = e1.isPlayer || e2.isPlayer;
+
+                        // ===== ИСКРЫ В ЗАВИСИМОСТИ ОТ СИЛЫ =====
+                        if (impact > 0.25) {
+                            // Кол-во и мощность зависят от импульса
+                            const sparkCount = Math.min(Math.floor(impact * 8) + 2, 36);
+                            const sparkPower = Math.min(impact * 2.2 + 1, 14);
+
+                            let sparkColor;
+                            if (impact > 3) sparkColor = "#ffd54f";       // мощнейший — золото
+                            else if (impact > 1.5) sparkColor = "#ff007f"; // сильный — розовый
+                            else sparkColor = "#ffffff";                    // слабый — белый
+
+                            spawnBurst(midX, midY, sparkColor, sparkCount, sparkPower);
+
+                            // Средний и сильный удар — плюс кольцо
+                            if (impact > 1.0) {
+                                spawnRing(midX, midY, sparkColor, 20 + impact * 12);
+                            }
+
+                            // Тряска экрана, если участвует игрок
+                            if (isPlayerInvolved) {
+                                shake = Math.max(shake, Math.min(impact * 2.5, 14));
+                            }
+                        }
+
+                        // ===== БОНУСНЫЕ ОЧКИ ЗА МОЩНЫЙ УДАР =====
+                        // Только если игрок участвовал и удар был сильный
+                        if (isPlayerInvolved && impact > 1.8) {
+                            const attacker = e1.isPlayer ? e1 : e2;
+                            if (attacker.hitCooldown <= 0) {
+                                const bonus = Math.floor(impact * 1.5);
+                                coins += bonus;
+                                localStorage.setItem("shove_coins", coins);
+                                coinsUI.textContent = coins;
+                                spawnFloater(midX, midY - 10, "+" + bonus + " 💰", "#ffd54f");
+                                updateShopUI();
+                                attacker.hitCooldown = 25; // ~0.4 сек кулдаун
+                            }
                         }
                     }
                 }
