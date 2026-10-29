@@ -164,6 +164,7 @@
                 if (this.isPlayer) {
                     const pulse = 1 + Math.sin(time * 0.15) * 0.12;
 
+                    // Пульсирующее золотое кольцо
                     ctx.beginPath();
                     ctx.arc(0, 0, (this.radius + 12) * pulse, 0, Math.PI * 2);
                     ctx.strokeStyle = "rgba(255, 213, 79, 0.9)";
@@ -173,32 +174,11 @@
                     ctx.stroke();
                     ctx.shadowBlur = 0;
 
+                    // Вращающееся белое кольцо
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius + 18, time * 0.05, time * 0.05 + Math.PI * 1.4);
                     ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
                     ctx.lineWidth = 2;
-                    ctx.stroke();
-
-                    const bob = Math.sin(time * 0.12) * 6;
-                    const arrowY = -this.radius - 28 + bob;
-                    const arrowSize = 12;
-
-                    ctx.beginPath();
-                    ctx.moveTo(0, arrowY + arrowSize);
-                    ctx.lineTo(-arrowSize * 0.9, arrowY);
-                    ctx.lineTo(-arrowSize * 0.35, arrowY);
-                    ctx.lineTo(-arrowSize * 0.35, arrowY - arrowSize);
-                    ctx.lineTo(arrowSize * 0.35, arrowY - arrowSize);
-                    ctx.lineTo(arrowSize * 0.35, arrowY);
-                    ctx.lineTo(arrowSize * 0.9, arrowY);
-                    ctx.closePath();
-                    ctx.fillStyle = "#ffd54f";
-                    ctx.strokeStyle = "#000";
-                    ctx.lineWidth = 2;
-                    ctx.shadowColor = "#ffd54f";
-                    ctx.shadowBlur = 12;
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
                     ctx.stroke();
                 }
 
@@ -345,32 +325,26 @@
                         const midX = (e1.x + e2.x) / 2, midY = (e1.y + e2.y) / 2;
                         const isPlayerInvolved = e1.isPlayer || e2.isPlayer;
 
-                        // ===== ИСКРЫ В ЗАВИСИМОСТИ ОТ СИЛЫ =====
                         if (impact > 0.25) {
-                            // Кол-во и мощность зависят от импульса
                             const sparkCount = Math.min(Math.floor(impact * 8) + 2, 36);
                             const sparkPower = Math.min(impact * 2.2 + 1, 14);
 
                             let sparkColor;
-                            if (impact > 3) sparkColor = "#ffd54f";       // мощнейший — золото
-                            else if (impact > 1.5) sparkColor = "#ff007f"; // сильный — розовый
-                            else sparkColor = "#ffffff";                    // слабый — белый
+                            if (impact > 3) sparkColor = "#ffd54f";
+                            else if (impact > 1.5) sparkColor = "#ff007f";
+                            else sparkColor = "#ffffff";
 
                             spawnBurst(midX, midY, sparkColor, sparkCount, sparkPower);
 
-                            // Средний и сильный удар — плюс кольцо
                             if (impact > 1.0) {
                                 spawnRing(midX, midY, sparkColor, 20 + impact * 12);
                             }
 
-                            // Тряска экрана, если участвует игрок
                             if (isPlayerInvolved) {
                                 shake = Math.max(shake, Math.min(impact * 2.5, 14));
                             }
                         }
 
-                        // ===== БОНУСНЫЕ ОЧКИ ЗА МОЩНЫЙ УДАР =====
-                        // Только если игрок участвовал и удар был сильный
                         if (isPlayerInvolved && impact > 1.8) {
                             const attacker = e1.isPlayer ? e1 : e2;
                             if (attacker.hitCooldown <= 0) {
@@ -380,7 +354,7 @@
                                 coinsUI.textContent = coins;
                                 spawnFloater(midX, midY - 10, "+" + bonus + " 💰", "#ffd54f");
                                 updateShopUI();
-                                attacker.hitCooldown = 25; // ~0.4 сек кулдаун
+                                attacker.hitCooldown = 25;
                             }
                         }
                     }
