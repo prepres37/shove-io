@@ -5,108 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Shove.io — Мемная Битва</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background: #09070f;
-            font-family: Arial, sans-serif;
-            touch-action: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #09070f; font-family: Arial, sans-serif; touch-action: none; }
         #ui {
-            position: fixed;
-            top: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            display: flex;
-            gap: 20px;
-            background: rgba(23, 20, 38, 0.9);
-            padding: 10px 20px;
-            border-radius: 30px;
-            border: 2px solid #ff007f;
-            box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
-            font-size: 16px;
-            font-weight: bold;
-            white-space: nowrap;
-            color: #fff;
+            position: fixed; top: 15px; left: 50%; transform: translateX(-50%); z-index: 10;
+            display: flex; gap: 20px; background: rgba(23, 20, 38, 0.9); padding: 10px 20px;
+            border-radius: 30px; border: 2px solid #ff007f; box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+            font-size: 16px; font-weight: bold; white-space: nowrap; color: #fff;
         }
-        canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-        }
+        canvas { display: block; width: 100vw; height: 100vh; }
         #shop-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 10;
-            background: #ff007f;
-            border: none;
-            color: white;
-            padding: 12px 20px;
-            border-radius: 20px;
-            font-weight: bold;
-            cursor: pointer;
+            position: fixed; bottom: 20px; right: 20px; z-index: 10; background: #ff007f; border: none;
+            color: white; padding: 12px 20px; border-radius: 20px; font-weight: bold; cursor: pointer;
             box-shadow: 0 5px 15px rgba(255, 0, 127, 0.4);
         }
         #shop-modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 20;
-            background: #171426;
-            border: 3px solid #00ffcc;
-            border-radius: 20px;
-            padding: 20px;
-            width: 90%;
-            max-width: 320px;
-            text-align: center;
-            color: #fff;
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 20; background: #171426; border: 3px solid #00ffcc; border-radius: 20px;
+            padding: 20px; width: 90%; max-width: 320px; text-align: center; color: #fff;
             box-shadow: 0 0 30px rgba(0, 255, 204, 0.4);
         }
         .skin-option {
-            background: #25213b;
-            border: 2px solid #4a2574;
-            border-radius: 10px;
-            padding: 10px;
-            margin: 10px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
+            background: #25213b; border: 2px solid #4a2574; border-radius: 10px; padding: 10px;
+            margin: 10px 0; display: flex; justify-content: space-between; align-items: center; gap: 10px;
         }
-        .skin-btn {
-            background: #00ffcc;
-            border: none;
-            color: #000;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        .skin-btn.equipped {
-            background: #ff007f;
-            color: #fff;
-        }
-        #close-shop {
-            margin-top: 15px;
-            background: #555;
-            border: none;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 10px;
-            cursor: pointer;
-        }
+        .skin-btn { background: #00ffcc; border: none; color: #000; padding: 5px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .skin-btn.equipped { background: #ff007f; color: #fff; }
+        #close-shop { margin-top: 15px; background: #555; border: none; color: white; padding: 8px 15px; border-radius: 10px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -144,11 +69,11 @@
         let targetY = arena.y;
         let isPointerDown = false;
 
-        // Эффекты
         let particles = [];
         let rings = [];
         let floaters = [];
         let shake = 0;
+        let time = 0;
 
         const skins = [
             { id: "default", name: "🟢 Огурец", color: "#00ffcc", price: 0, emoji: "🟢" },
@@ -158,25 +83,16 @@
         ];
 
         let ownedSkins = ["default"];
-        try {
-            ownedSkins = JSON.parse(localStorage.getItem("shove_owned_skins")) || ["default"];
-        } catch (e) {
-            ownedSkins = ["default"];
-        }
+        try { ownedSkins = JSON.parse(localStorage.getItem("shove_owned_skins")) || ["default"]; }
+        catch (e) { ownedSkins = ["default"]; }
 
         let currentSkin = localStorage.getItem("shove_current_skin") || "default";
 
         class Entity {
             constructor(x, y, radius, skinId, isPlayer = false) {
-                this.x = x;
-                this.y = y;
-                this.radius = radius;
-                this.isPlayer = isPlayer;
-                this.skinId = skinId;
-                this.vx = 0;
-                this.vy = 0;
-                this.mass = radius;
-                this.alive = true;
+                this.x = x; this.y = y; this.radius = radius;
+                this.isPlayer = isPlayer; this.skinId = skinId;
+                this.vx = 0; this.vy = 0; this.mass = radius; this.alive = true;
             }
 
             update() {
@@ -187,7 +103,6 @@
                         const dx = targetX - this.x;
                         const dy = targetY - this.y;
                         const dist = Math.hypot(dx, dy);
-
                         if (dist > 5) {
                             const speed = Math.min(dist * 0.08, 5);
                             this.vx += (dx / dist) * speed * 0.2;
@@ -199,7 +114,6 @@
                         const dx = player.x - this.x;
                         const dy = player.y - this.y;
                         const dist = Math.hypot(dx, dy) || 1;
-
                         if (dist < 300) {
                             this.vx += (dx / dist) * 0.15;
                             this.vy += (dy / dist) * 0.15;
@@ -216,26 +130,19 @@
                 this.y += this.vy;
 
                 const distToCenter = Math.hypot(this.x - arena.x, this.y - arena.y);
-
                 if (distToCenter > arena.radius) {
                     this.alive = false;
 
                     if (!this.isPlayer) {
-                        // Эффект выбивания бота
                         spawnBurst(this.x, this.y, "#ff3366", 22, 7);
                         spawnRing(this.x, this.y, "#ff3366", 55);
                         spawnFloater(this.x, this.y, "+10 💰", "#ffd54f");
-
                         coins += 10;
                         localStorage.setItem("shove_coins", coins);
                         coinsUI.textContent = coins;
                         updateShopUI();
-
-                        if (player && Math.hypot(this.x - player.x, this.y - player.y) < 220) {
-                            shake = Math.max(shake, 6);
-                        }
+                        if (player && Math.hypot(this.x - player.x, this.y - player.y) < 220) shake = Math.max(shake, 6);
                     } else {
-                        // Эффект смерти игрока
                         spawnBurst(this.x, this.y, "#00ffcc", 45, 10);
                         spawnRing(this.x, this.y, "#00ffcc", 90);
                         spawnFloater(this.x, this.y, "ТЕБЯ СТОЛКНУЛИ!", "#ff3366");
@@ -247,21 +154,57 @@
 
             draw(camX, camY) {
                 if (!this.alive) return;
-
                 const skin = skins.find(s => s.id === this.skinId) || skins[0];
 
                 ctx.save();
                 ctx.translate(this.x - camX, this.y - camY);
 
-                // Белое кольцо у игрока
+                // ====== ГРАФИЧЕСКИЙ МАРКЕР ИГРОКА ======
                 if (this.isPlayer) {
+                    const pulse = 1 + Math.sin(time * 0.15) * 0.12;
+
+                    // Внешнее пульсирующее золотое кольцо
                     ctx.beginPath();
-                    ctx.arc(0, 0, this.radius + 6, 0, Math.PI * 2);
-                    ctx.strokeStyle = "#ffffff";
+                    ctx.arc(0, 0, (this.radius + 12) * pulse, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(255, 213, 79, 0.9)";
                     ctx.lineWidth = 3;
+                    ctx.shadowColor = "#ffd54f";
+                    ctx.shadowBlur = 15;
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+
+                    // Второе тонкое кольцо (вращающееся)
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 18, time * 0.05, time * 0.05 + Math.PI * 1.4);
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Прыгающая стрелка-указатель сверху
+                    const bob = Math.sin(time * 0.12) * 6;
+                    const arrowY = -this.radius - 28 + bob;
+                    const arrowSize = 12;
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, arrowY + arrowSize);         // острие стрелки (снизу)
+                    ctx.lineTo(-arrowSize * 0.9, arrowY);       // левый угол
+                    ctx.lineTo(-arrowSize * 0.35, arrowY);      // внутрь
+                    ctx.lineTo(-arrowSize * 0.35, arrowY - arrowSize); // вверх
+                    ctx.lineTo(arrowSize * 0.35, arrowY - arrowSize);  // вправо
+                    ctx.lineTo(arrowSize * 0.35, arrowY);       // вниз
+                    ctx.lineTo(arrowSize * 0.9, arrowY);        // правый угол
+                    ctx.closePath();
+                    ctx.fillStyle = "#ffd54f";
+                    ctx.strokeStyle = "#000";
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = "#ffd54f";
+                    ctx.shadowBlur = 12;
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
                     ctx.stroke();
                 }
 
+                // Тело персонажа
                 ctx.beginPath();
                 ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = skin.color;
@@ -271,20 +214,12 @@
                 ctx.stroke();
                 ctx.closePath();
 
+                // Мордочка-эмодзи
                 ctx.fillStyle = "#000";
                 ctx.font = `${this.radius * 1.1}px Arial`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillText(skin.emoji, 0, 0);
-
-                // Подпись "ВЫ"
-                if (this.isPlayer) {
-                    ctx.fillStyle = "#fff";
-                    ctx.font = "bold 14px Arial";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
-                    ctx.fillText("ВЫ", 0, -this.radius - 18);
-                }
 
                 ctx.restore();
             }
@@ -293,11 +228,7 @@
         let player;
         let entities = [];
 
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
@@ -306,18 +237,11 @@
             entities = [player];
 
             const enemySkins = ["capybara", "floppa", "anon", "default"];
-
             for (let i = 0; i < 5; i++) {
                 const randomSkin = enemySkins[Math.floor(Math.random() * enemySkins.length)];
                 const angle = Math.random() * Math.PI * 2;
                 const r = 50 + Math.random() * (arena.radius - 120);
-
-                entities.push(new Entity(
-                    arena.x + Math.cos(angle) * r,
-                    arena.y + Math.sin(angle) * r,
-                    22,
-                    randomSkin
-                ));
+                entities.push(new Entity(arena.x + Math.cos(angle) * r, arena.y + Math.sin(angle) * r, 22, randomSkin));
             }
 
             particles = [];
@@ -326,63 +250,34 @@
             shake = 0;
         }
 
-        // -------- ЭФФЕКТЫ --------
         function spawnBurst(x, y, color, count = 18, power = 6) {
             for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = Math.random() * power;
                 particles.push({
-                    x,
-                    y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    life: 1,
-                    decay: 0.02 + Math.random() * 0.03,
-                    size: 2 + Math.random() * 4,
-                    color
+                    x, y,
+                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                    life: 1, decay: 0.02 + Math.random() * 0.03,
+                    size: 2 + Math.random() * 4, color
                 });
             }
         }
 
         function spawnRing(x, y, color = "#ff007f", maxR = 45) {
-            rings.push({
-                x,
-                y,
-                r: 6,
-                maxR,
-                life: 1,
-                decay: 0.06,
-                color
-            });
+            rings.push({ x, y, r: 6, maxR, life: 1, decay: 0.06, color });
         }
 
         function spawnFloater(x, y, text, color = "#ffd54f") {
-            floaters.push({
-                x,
-                y,
-                text,
-                color,
-                life: 1,
-                decay: 0.015,
-                vy: -0.9
-            });
+            floaters.push({ x, y, text, color, life: 1, decay: 0.015, vy: -0.9 });
         }
 
         function updateAndDrawEffects(camX, camY) {
-            // Частицы
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.vx *= 0.96;
-                p.vy *= 0.96;
+                p.x += p.vx; p.y += p.vy;
+                p.vx *= 0.96; p.vy *= 0.96;
                 p.life -= p.decay;
-
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
-                    continue;
-                }
-
+                if (p.life <= 0) { particles.splice(i, 1); continue; }
                 ctx.save();
                 ctx.globalAlpha = Math.max(p.life, 0);
                 ctx.fillStyle = p.color;
@@ -392,17 +287,11 @@
                 ctx.restore();
             }
 
-            // Кольца
             for (let i = rings.length - 1; i >= 0; i--) {
                 const r = rings[i];
                 r.r += (r.maxR - r.r) * 0.15;
                 r.life -= r.decay;
-
-                if (r.life <= 0) {
-                    rings.splice(i, 1);
-                    continue;
-                }
-
+                if (r.life <= 0) { rings.splice(i, 1); continue; }
                 ctx.save();
                 ctx.globalAlpha = Math.max(r.life, 0);
                 ctx.strokeStyle = r.color;
@@ -413,17 +302,11 @@
                 ctx.restore();
             }
 
-            // Всплывающий текст
             for (let i = floaters.length - 1; i >= 0; i--) {
                 const f = floaters[i];
                 f.y += f.vy;
                 f.life -= f.decay;
-
-                if (f.life <= 0) {
-                    floaters.splice(i, 1);
-                    continue;
-                }
-
+                if (f.life <= 0) { floaters.splice(i, 1); continue; }
                 ctx.save();
                 ctx.globalAlpha = Math.max(f.life, 0);
                 ctx.font = "bold 18px Arial";
@@ -441,53 +324,32 @@
         function handleCollisions() {
             for (let i = 0; i < entities.length; i++) {
                 for (let j = i + 1; j < entities.length; j++) {
-                    const e1 = entities[i];
-                    const e2 = entities[j];
-
+                    const e1 = entities[i], e2 = entities[j];
                     if (!e1.alive || !e2.alive) continue;
 
-                    let dx = e2.x - e1.x;
-                    let dy = e2.y - e1.y;
+                    let dx = e2.x - e1.x, dy = e2.y - e1.y;
                     let dist = Math.hypot(dx, dy);
-
-                    if (dist === 0) {
-                        dx = 0.01;
-                        dy = 0;
-                        dist = 0.01;
-                    }
+                    if (dist === 0) { dx = 0.01; dy = 0; dist = 0.01; }
 
                     const minDist = e1.radius + e2.radius;
-
                     if (dist < minDist) {
                         const overlap = minDist - dist;
-                        const nx = dx / dist;
-                        const ny = dy / dist;
+                        const nx = dx / dist, ny = dy / dist;
 
-                        e1.x -= nx * overlap * 0.5;
-                        e1.y -= ny * overlap * 0.5;
-                        e2.x += nx * overlap * 0.5;
-                        e2.y += ny * overlap * 0.5;
+                        e1.x -= nx * overlap * 0.5; e1.y -= ny * overlap * 0.5;
+                        e2.x += nx * overlap * 0.5; e2.y += ny * overlap * 0.5;
 
-                        const kx = e1.vx - e2.vx;
-                        const ky = e1.vy - e2.vy;
+                        const kx = e1.vx - e2.vx, ky = e1.vy - e2.vy;
                         const p = 2 * (nx * kx + ny * ky) / (e1.mass + e2.mass);
 
-                        e1.vx -= p * e2.mass * nx * 2.0;
-                        e1.vy -= p * e2.mass * ny * 2.0;
-                        e2.vx += p * e1.mass * nx * 2.0;
-                        e2.vy += p * e1.mass * ny * 2.0;
+                        e1.vx -= p * e2.mass * nx * 2.0; e1.vy -= p * e2.mass * ny * 2.0;
+                        e2.vx += p * e1.mass * nx * 2.0; e2.vy += p * e1.mass * ny * 2.0;
 
-                        // Эффект столкновения (не каждый кадр)
-                        const midX = (e1.x + e2.x) / 2;
-                        const midY = (e1.y + e2.y) / 2;
-
+                        const midX = (e1.x + e2.x) / 2, midY = (e1.y + e2.y) / 2;
                         if (Math.abs(p) > 1.2 && Math.random() < 0.35) {
                             spawnRing(midX, midY, "#ffffff", 30);
                             spawnBurst(midX, midY, "#ff007f", 5, 4);
-
-                            if (e1.isPlayer || e2.isPlayer) {
-                                shake = Math.max(shake, 3);
-                            }
+                            if (e1.isPlayer || e2.isPlayer) shake = Math.max(shake, 3);
                         }
                     }
                 }
@@ -496,10 +358,8 @@
 
         function setInput(clientX, clientY) {
             if (!player) return;
-
             const camX = player.x - canvas.width / 2;
             const camY = player.y - canvas.height / 2;
-
             targetX = clientX + camX;
             targetY = clientY + camY;
         }
@@ -509,35 +369,20 @@
             isPointerDown = true;
             setInput(e.clientX, e.clientY);
         });
-
-        window.addEventListener("pointermove", (e) => {
-            if (isPointerDown) {
-                setInput(e.clientX, e.clientY);
-            }
-        });
-
-        window.addEventListener("pointerup", () => {
-            isPointerDown = false;
-        });
-
-        window.addEventListener("pointercancel", () => {
-            isPointerDown = false;
-        });
+        window.addEventListener("pointermove", (e) => { if (isPointerDown) setInput(e.clientX, e.clientY); });
+        window.addEventListener("pointerup", () => { isPointerDown = false; });
+        window.addEventListener("pointercancel", () => { isPointerDown = false; });
 
         function updateShopUI() {
             skinsList.innerHTML = "";
-
             skins.forEach((skin) => {
                 const div = document.createElement("div");
                 div.className = "skin-option";
-
                 const span = document.createElement("span");
                 span.textContent = skin.name;
-
                 const btn = document.createElement("button");
                 const isOwned = ownedSkins.includes(skin.id);
                 const isEquipped = currentSkin === skin.id;
-
                 btn.className = "skin-btn" + (isEquipped ? " equipped" : "");
                 btn.textContent = isEquipped ? "Надет" : (isOwned ? "Надеть" : skin.price + " 💰");
 
@@ -549,19 +394,15 @@
                         updateShopUI();
                         return;
                     }
-
                     if (coins >= skin.price) {
                         coins -= skin.price;
                         localStorage.setItem("shove_coins", coins);
                         coinsUI.textContent = coins;
-
                         ownedSkins.push(skin.id);
                         localStorage.setItem("shove_owned_skins", JSON.stringify(ownedSkins));
-
                         currentSkin = skin.id;
                         localStorage.setItem("shove_current_skin", currentSkin);
                         if (player) player.skinId = currentSkin;
-
                         updateShopUI();
                     }
                 };
@@ -572,16 +413,11 @@
             });
         }
 
-        shopBtn.onclick = () => {
-            shopModal.style.display = "block";
-            updateShopUI();
-        };
-
-        closeShop.onclick = () => {
-            shopModal.style.display = "none";
-        };
+        shopBtn.onclick = () => { shopModal.style.display = "block"; updateShopUI(); };
+        closeShop.onclick = () => { shopModal.style.display = "none"; };
 
         function gameLoop() {
+            time++;
             ctx.fillStyle = "#09070f";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -589,34 +425,23 @@
                 let camX = player.x - canvas.width / 2;
                 let camY = player.y - canvas.height / 2;
 
-                // Тряска экрана
                 if (shake > 0.3) {
                     camX += (Math.random() - 0.5) * shake;
                     camY += (Math.random() - 0.5) * shake;
                     shake *= 0.9;
-                } else {
-                    shake = 0;
-                }
+                } else shake = 0;
 
                 ctx.strokeStyle = "#161224";
                 ctx.lineWidth = 1;
-
                 const step = 60;
                 const startX = Math.floor(camX / step) * step;
                 const startY = Math.floor(camY / step) * step;
 
                 for (let x = startX; x < camX + canvas.width; x += step) {
-                    ctx.beginPath();
-                    ctx.moveTo(x - camX, 0);
-                    ctx.lineTo(x - camX, canvas.height);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(x - camX, 0); ctx.lineTo(x - camX, canvas.height); ctx.stroke();
                 }
-
                 for (let y = startY; y < camY + canvas.height; y += step) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, y - camY);
-                    ctx.lineTo(canvas.width, y - camY);
-                    ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(0, y - camY); ctx.lineTo(canvas.width, y - camY); ctx.stroke();
                 }
 
                 ctx.beginPath();
@@ -629,7 +454,6 @@
                 ctx.closePath();
 
                 let aliveEnemies = 0;
-
                 entities.forEach((e) => {
                     e.update();
                     e.draw(camX, camY);
@@ -638,7 +462,6 @@
 
                 handleCollisions();
                 updateAndDrawEffects(camX, camY);
-
                 enemiesUI.textContent = aliveEnemies;
 
                 if (aliveEnemies === 0 && player.alive) {
@@ -646,11 +469,7 @@
                     spawnRing(arena.x, arena.y, "#00ffcc", 120);
                     spawnFloater(arena.x, arena.y - 60, "ПОБЕДА!", "#00ffcc");
                     shake = 12;
-
-                    setTimeout(() => {
-                        alert("Победа! Вы выкинули всех соперников!");
-                        resetGame();
-                    }, 150);
+                    setTimeout(() => { alert("Победа! Вы выкинули всех соперников!"); resetGame(); }, 150);
                 }
             }
 
