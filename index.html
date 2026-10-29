@@ -7,16 +7,17 @@
     <style>
         * {
             box-sizing: border-box;
+            margin: 0;
+            padding: 0;
             user-select: none;
             -webkit-user-select: none;
         }
-        body {
-            margin: 0;
-            padding: 0;
-            background: #09070f;
-            color: #fff;
-            font-family: 'Arial', sans-serif;
+        body, html {
+            width: 100%;
+            height: 100%;
             overflow: hidden;
+            background: #09070f;
+            font-family: Arial, sans-serif;
             touch-action: none;
         }
         #ui {
@@ -27,24 +28,21 @@
             z-index: 10;
             display: flex;
             gap: 20px;
-            background: rgba(23, 20, 38, 0.8);
+            background: rgba(23, 20, 38, 0.9);
             padding: 10px 20px;
             border-radius: 30px;
             border: 2px solid #ff007f;
-            box-shadow: 0 0 15px rgba(255, 0, 127, 0.3);
+            box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
             font-size: 16px;
             font-weight: bold;
             white-space: nowrap;
+            color: #fff;
         }
         canvas {
             display: block;
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
         }
-        /* Окно магазина скинов */
         #shop-btn {
             position: fixed;
             bottom: 20px;
@@ -71,8 +69,9 @@
             border-radius: 20px;
             padding: 20px;
             width: 90%;
-            max-width: 340px;
+            max-width: 320px;
             text-align: center;
+            color: #fff;
             box-shadow: 0 0 30px rgba(0, 255, 204, 0.4);
         }
         .skin-option {
@@ -84,6 +83,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 10px;
         }
         .skin-btn {
             background: #00ffcc;
@@ -94,7 +94,10 @@
             font-weight: bold;
             cursor: pointer;
         }
-        .skin-btn.equipped { background: #ff007f; color: #fff; }
+        .skin-btn.equipped {
+            background: #ff007f;
+            color: #fff;
+        }
         #close-shop {
             margin-top: 15px;
             background: #555;
@@ -107,16 +110,15 @@
     </style>
 </head>
 <body>
-
     <div id="ui">
-        <div>Враги: <span id="enemiesCount">5</span> 👾</div>
+        <div>Враги: <span id="enemiesCount">0</span> 👾</div>
         <div>Монеты: <span id="coins">0</span> 💰</div>
     </div>
 
     <button id="shop-btn">🏪 Магазин Скинов</button>
 
     <div id="shop-modal">
-        <h3>Выбери мем-скин</h3>
+        <h3 style="margin-bottom: 10px;">Выбери мем-скин</h3>
         <div id="skins-list"></div>
         <button id="close-shop">Закрыть</button>
     </div>
@@ -133,26 +135,30 @@
         const closeShop = document.getElementById("close-shop");
         const skinsList = document.getElementById("skins-list");
 
-        // Размеры игрового мира
-        const world = { width: 1200, height: 1200 };
-        const arena = { x: 600, y: 600, radius: 450 };
-        
-        let coins = parseInt(localStorage.getItem('shove_coins')) || 0;
-        coinsUI.innerText = coins;
+        const arena = { x: 600, y: 600, radius: 400 };
+
+        let coins = Number(localStorage.getItem("shove_coins")) || 0;
+        coinsUI.textContent = coins;
 
         let targetX = arena.x;
         let targetY = arena.y;
-        let isTouching = false;
+        let isPointerDown = false;
 
-        // База скинов для монетизации
         const skins = [
-            { id: 'default', name: '🟢 Огурец', color: '#00ffcc', price: 0, emoji: '🟢' },
-            { id: 'capybara', name: '🦫 Капибара', color: '#b5895a', price: 50, emoji: '🦫' },
-            { id: 'floppa', name: '🐈 Шлёпа', color: '#ffaa44', price: 120, emoji: '🐈' },
-            { id: 'anon', name: '🎭 Анонимус', color: '#ffffff', price: 250, emoji: '🎭' }
+            { id: "default", name: "🟢 Огурец", color: "#00ffcc", price: 0, emoji: "🟢" },
+            { id: "capybara", name: "🦫 Капибара", color: "#b5895a", price: 50, emoji: "🦫" },
+            { id: "floppa", name: "🐈 Шлёпа", color: "#ffaa44", price: 120, emoji: "🐈" },
+            { id: "anon", name: "🎭 Анонимус", color: "#ffffff", price: 250, emoji: "🎭" }
         ];
-        let ownedSkins = JSON.parse(localStorage.getItem('shove_owned_skins')) || ['default'];
-        let currentSkin = localStorage.getItem('shove_current_skin') || 'default';
+
+        let ownedSkins = ["default"];
+        try {
+            ownedSkins = JSON.parse(localStorage.getItem("shove_owned_skins")) || ["default"];
+        } catch (e) {
+            ownedSkins = ["default"];
+        }
+
+        let currentSkin = localStorage.getItem("shove_current_skin") || "default";
 
         class Entity {
             constructor(x, y, radius, skinId, isPlayer = false) {
@@ -167,87 +173,81 @@
                 this.alive = true;
             }
 
-            getSkin() {
-                return skins.find(s => s.id === this.skinId) || skins[0];
-            }
-
             update() {
                 if (!this.alive) return;
 
                 if (this.isPlayer) {
-                    if (isTouching) {
-                        let dx = targetX - this.x;
-                        let dy = targetY - this.y;
-                        let dist = Math.sqrt(dx * dx + dy * dy);
+                    if (isPointerDown) {
+                        const dx = targetX - this.x;
+                        const dy = targetY - this.y;
+                        const dist = Math.hypot(dx, dy);
+
                         if (dist > 5) {
-                            // Ограничение максимальной скорости следования за пальцем
-                            let speed = Math.min(dist * 0.1, 6);
-                            this.vx += (dx / dist) * speed * 0.15;
-                            this.vy += (dy / dist) * speed * 0.15;
+                            const speed = Math.min(dist * 0.08, 5);
+                            this.vx += (dx / dist) * speed * 0.2;
+                            this.vy += (dy / dist) * speed * 0.2;
                         }
                     }
                 } else {
-                    // ИИ ботов: бегут к центру, если близко к краю, или атакуют игрока
-                    let toPlayerX = player.x - this.x;
-                    let toPlayerY = player.y - this.y;
-                    let distToPlayer = Math.sqrt(toPlayerX * toPlayerX + toPlayerY * toPlayerY);
+                    if (player && player.alive) {
+                        const dx = player.x - this.x;
+                        const dy = player.y - this.y;
+                        const dist = Math.hypot(dx, dy) || 1;
 
-                    if (distToPlayer < 250 && player.alive) {
-                        this.vx += (toPlayerX / distToPlayer) * 0.2;
-                        this.vy += (toPlayerY / distToPlayer) * 0.2;
-                    } else if (Math.random() < 0.02) {
-                        this.vx += (Math.random() - 0.5) * 3;
-                        this.vy += (Math.random() - 0.5) * 3;
+                        if (dist < 300) {
+                            this.vx += (dx / dist) * 0.15;
+                            this.vy += (dy / dist) * 0.15;
+                        } else if (Math.random() < 0.02) {
+                            this.vx += (Math.random() - 0.5) * 2;
+                            this.vy += (Math.random() - 0.5) * 2;
+                        }
                     }
                 }
 
-                this.vx *= 0.94;
-                this.vy *= 0.94;
+                this.vx *= 0.95;
+                this.vy *= 0.95;
                 this.x += this.vx;
                 this.y += this.vy;
 
-                // Проверка вылета за круглую арену
-                let distToCenter = Math.sqrt((this.x - arena.x)**2 + (this.y - arena.y)**2);
+                const distToCenter = Math.hypot(this.x - arena.x, this.y - arena.y);
+
                 if (distToCenter > arena.radius) {
                     this.alive = false;
+
                     if (!this.isPlayer) {
                         coins += 10;
-                        localStorage.setItem('shove_coins', coins);
-                        coinsUI.innerText = coins;
+                        localStorage.setItem("shove_coins", coins);
+                        coinsUI.textContent = coins;
                         updateShopUI();
                     } else {
-                        setTimeout(() => { resetGame(); }, 1000);
+                        setTimeout(() => resetGame(), 1200);
                     }
                 }
             }
 
             draw(camX, camY) {
                 if (!this.alive) return;
-                let s = this.getSkin();
-                
+
+                const skin = skins.find(s => s.id === this.skinId) || skins[0];
+
                 ctx.save();
                 ctx.translate(this.x - camX, this.y - camY);
-                
-                // Тело кружка
+
                 ctx.beginPath();
                 ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-                ctx.fillStyle = s.color;
+                ctx.fillStyle = skin.color;
                 ctx.fill();
-                ctx.shadowColor = s.color;
-                ctx.shadowBlur = 10;
-                ctx.strokeStyle = '#fff';
+                ctx.strokeStyle = "#fff";
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 ctx.closePath();
 
-                // Рисуем эмодзи-мордочку мем-персонажа внутри
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = '#000';
-                ctx.font = `${this.radius * 1.2}px Arial`;
+                ctx.fillStyle = "#000";
+                ctx.font = `${this.radius * 1.1}px Arial`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
-                ctx.fillText(s.emoji, 0, 0);
-                
+                ctx.fillText(skin.emoji, 0, 0);
+
                 ctx.restore();
             }
         }
@@ -259,148 +259,220 @@
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
-        window.addEventListener('resize', resizeCanvas);
+
+        window.addEventListener("resize", resizeCanvas);
         resizeCanvas();
 
         function resetGame() {
-            player = new Entity(arena.x, arena.y, 25, currentSkin, true);
+            player = new Entity(arena.x, arena.y, 24, currentSkin, true);
             entities = [player];
-            
-            // Спавним случайных ботов-врагов в мемных скинах
-            const enemySkins = ['capybara', 'floppa', 'anon', 'default'];
-            for (let i = 0; i < 6; i++) {
-                let randomSkin = enemySkins[Math.floor(Math.random() * enemySkins.length)];
-                let angle = Math.random() * Math.PI * 2;
-                let r = Math.random() * (arena.radius - 100);
+
+            const enemySkins = ["capybara", "floppa", "anon", "default"];
+
+            for (let i = 0; i < 5; i++) {
+                const randomSkin = enemySkins[Math.floor(Math.random() * enemySkins.length)];
+                const angle = Math.random() * Math.PI * 2;
+                const r = 50 + Math.random() * (arena.radius - 120);
+
                 entities.push(new Entity(
                     arena.x + Math.cos(angle) * r,
                     arena.y + Math.sin(angle) * r,
-                    23,
+                    22,
                     randomSkin
                 ));
             }
         }
 
-        // Физика столкновений импульсов (отскоки)
         function handleCollisions() {
             for (let i = 0; i < entities.length; i++) {
                 for (let j = i + 1; j < entities.length; j++) {
+                    const e1 = entities[i];
+                    const e2 = entities[j];
 
-                let e1 = entities[i];
-let e2 = entities[j];
-if (!e1.alive || !e2.alive) continue;
-let dx = e2.x - e1.x;
-let dy = e2.y - e1.y;
-let dist = Math.sqrt(dx * dx + dy * dy);
-if (dist < e1.radius + e2.radius) {
-let overlap = (e1.radius + e2.radius) - dist;
-let nx = dx / dist;
-let ny = dy / dist;
-e1.x -= nx * overlap * 0.5;
-e1.y -= ny * overlap * 0.5;
-let kx = e1.vx - e2.vx;
-let ky = e1.vy - e2.vy;
-let p = 2 * (nx * kx + ny * ky) / (e1.mass + e2.mass);
-// Сильный отскок
-e1.vx -= p * e2.mass * nx * 2.2;
-e1.vy -= p * e2.mass * ny * 2.2;
-e2.vx += p * e1.mass * nx * 2.2;
-e2.vy += p * e1.mass * ny * 2.2;
-}
-}
-}
-}
-// --- Обработка Тачскрина и Мыши ---
-function updateTargetPos(clientX, clientY) {
-let camX = player.x - canvas.width / 2;
-let camY = player.y - canvas.height / 2;
-targetX = clientX + camX;
-targetY = clientY + camY;
-}
-window.addEventListener('mousedown', (e) => { isTouching = true; updateTargetPos(e.clientX, e.clientY); });
-window.addEventListener('mousemove', (e) => { if (isTouching) updateTargetPos(e.clientX, e.clientY); });
-window.addEventListener('mouseup', () => { isTouching = false; });
-window.addEventListener('touchstart', (e) => { isTouching = true; updateTargetPos(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
-window.addEventListener('touchmove', (e) => { if (isTouching) updateTargetPos(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
-window.addEventListener('touchend', () => { isTouching = false; });
-// --- Магазин Скинов ---
-function updateShopUI() {
-skinsList.innerHTML = '';
-skins.forEach(skin => {
-let div = document.createElement('div');
-div.className = 'skin-option';
-let isOwned = ownedSkins.includes(skin.id);
-let isEquipped = currentSkin === skin.id;
-let btnText = isEquipped ? 'Надет' : (isOwned ? 'Надеть' : ${skin.price} 💰);
-let btnClass = isEquipped ? 'skin-btn equipped' : 'skin-btn';
-div.innerHTML = <span>${skin.name}</span>;
-let btn = document.createElement('button');
-btn.className = btnClass;
-btn.innerText = btnText;
-btn.onclick = () => {
-if (isOwned) {
-currentSkin = skin.id;
-localStorage.setItem('shove_current_skin', currentSkin);
-player.skinId = currentSkin;
-updateShopUI();
-} else if (coins >= skin.price) {
-coins -= skin.price;
-localStorage.setItem('shove_coins', coins);
-coinsUI.innerText = coins;
-ownedSkins.push(skin.id);
-localStorage.setItem('shove_owned_skins', JSON.stringify(ownedSkins));
-currentSkin = skin.id;
-localStorage.setItem('shove_current_skin', currentSkin);
-player.skinId = currentSkin;
-updateShopUI();
-} else {
-alert("Не хватает монет! Выбивайте ботов с арены!");
-}
-};
-div.appendChild(btn);
-skinsList.appendChild(div);
-});
-}
-shopBtn.onclick = () => { shopModal.style.display = 'block'; updateShopUI(); };
-closeShop.onclick = () => { shopModal.style.display = 'none'; };
-// Игровой цикл
-function gameLoop() {
-ctx.clearRect(0, 0, canvas.width, canvas.height);
-// Камера плавно следует за игроком
-let camX = player.x - canvas.width / 2;
-let camY = player.y - canvas.height / 2;
-// Сетка космоса (фона)
-ctx.strokeStyle = '#1b1730';
-ctx.lineWidth = 1;
-let gridSize = 50;
-for (let x = Math.floor(camX / gridSize) * gridSize; x < camX + canvas.width; x += gridSize) {
-ctx.beginPath(); ctx.moveTo(x - camX, 0); ctx.lineTo(x - camX, canvas.height); ctx.stroke();
-}
-for (let y = Math.floor(camY / gridSize) * gridSize; y < camY + canvas.height; y += gridSize) {
-ctx.beginPath(); ctx.moveTo(0, y - camY); ctx.lineTo(canvas.width, y - camY); ctx.stroke();
-}
-// Рисуем опасную неоновую арену
-ctx.beginPath();
-ctx.arc(arena.x - camX, arena.y - camY, arena.radius, 0, Math.PI * 2);
-ctx.fillStyle = "#110e21";
-ctx.fill();
-ctx.lineWidth = 8;
-ctx.strokeStyle = "#ff007f";
-ctx.stroke();
-// Обновляем сущности
-let aliveEnemies = 0;
-entities.forEach(e => {
-e.update();
-e.draw(camX, camY);
-if (!e.isPlayer && e.alive) aliveEnemies++;
-});
-handleCollisions();
-enemiesUI.innerText = aliveEnemies;
-if (aliveEnemies === 0 && player.alive) {
-alert("Победа! Вы выкинули всех!");
-resetGame();
-}
-requestAnimationFrame(gameLoop);
-}
-resetGame();
-gameLoop();
+                    if (!e1.alive || !e2.alive) continue;
+
+                    let dx = e2.x - e1.x;
+                    let dy = e2.y - e1.y;
+                    let dist = Math.hypot(dx, dy);
+
+                    if (dist === 0) {
+                        dx = 0.01;
+                        dy = 0;
+                        dist = 0.01;
+                    }
+
+                    const minDist = e1.radius + e2.radius;
+
+                    if (dist < minDist) {
+                        const overlap = minDist - dist;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+
+                        e1.x -= nx * overlap * 0.5;
+                        e1.y -= ny * overlap * 0.5;
+                        e2.x += nx * overlap * 0.5;
+                        e2.y += ny * overlap * 0.5;
+
+                        const kx = e1.vx - e2.vx;
+                        const ky = e1.vy - e2.vy;
+                        const p = 2 * (nx * kx + ny * ky) / (e1.mass + e2.mass);
+
+                        e1.vx -= p * e2.mass * nx * 2.0;
+                        e1.vy -= p * e2.mass * ny * 2.0;
+                        e2.vx += p * e1.mass * nx * 2.0;
+                        e2.vy += p * e1.mass * ny * 2.0;
+                    }
+                }
+            }
+        }
+
+        function setInput(clientX, clientY) {
+            if (!player) return;
+
+            const camX = player.x - canvas.width / 2;
+            const camY = player.y - canvas.height / 2;
+
+            targetX = clientX + camX;
+            targetY = clientY + camY;
+        }
+
+        window.addEventListener("pointerdown", (e) => {
+            if (e.target.closest("button")) return;
+            isPointerDown = true;
+            setInput(e.clientX, e.clientY);
+        });
+
+        window.addEventListener("pointermove", (e) => {
+            if (isPointerDown) {
+                setInput(e.clientX, e.clientY);
+            }
+        });
+
+        window.addEventListener("pointerup", () => {
+            isPointerDown = false;
+        });
+
+        window.addEventListener("pointercancel", () => {
+            isPointerDown = false;
+        });
+
+        function updateShopUI() {
+            skinsList.innerHTML = "";
+
+            skins.forEach((skin) => {
+                const div = document.createElement("div");
+                div.className = "skin-option";
+
+                const span = document.createElement("span");
+                span.textContent = skin.name;
+
+                const btn = document.createElement("button");
+                const isOwned = ownedSkins.includes(skin.id);
+                const isEquipped = currentSkin === skin.id;
+
+                btn.className = "skin-btn" + (isEquipped ? " equipped" : "");
+                btn.textContent = isEquipped ? "Надет" : (isOwned ? "Надеть" : skin.price + " 💰");
+
+                btn.onclick = () => {
+                    if (isOwned) {
+                        currentSkin = skin.id;
+                        localStorage.setItem("shove_current_skin", currentSkin);
+                        if (player) player.skinId = currentSkin;
+                        updateShopUI();
+                        return;
+                    }
+
+                    if (coins >= skin.price) {
+                        coins -= skin.price;
+                        localStorage.setItem("shove_coins", coins);
+                        coinsUI.textContent = coins;
+
+                        ownedSkins.push(skin.id);
+                        localStorage.setItem("shove_owned_skins", JSON.stringify(ownedSkins));
+
+                        currentSkin = skin.id;
+                        localStorage.setItem("shove_current_skin", currentSkin);
+                        if (player) player.skinId = currentSkin;
+
+                        updateShopUI();
+                    }
+                };
+
+                div.appendChild(span);
+                div.appendChild(btn);
+                skinsList.appendChild(div);
+            });
+        }
+
+        shopBtn.onclick = () => {
+            shopModal.style.display = "block";
+            updateShopUI();
+        };
+
+        closeShop.onclick = () => {
+            shopModal.style.display = "none";
+        };
+
+        function gameLoop() {
+            ctx.fillStyle = "#09070f";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (player) {
+                const camX = player.x - canvas.width / 2;
+                const camY = player.y - canvas.height / 2;
+
+                ctx.strokeStyle = "#161224";
+                ctx.lineWidth = 1;
+
+                const step = 60;
+                const startX = Math.floor(camX / step) * step;
+                const startY = Math.floor(camY / step) * step;
+
+                for (let x = startX; x < camX + canvas.width; x += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(x - camX, 0);
+                    ctx.lineTo(x - camX, canvas.height);
+                    ctx.stroke();
+                }
+
+                for (let y = startY; y < camY + canvas.height; y += step) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y - camY);
+                    ctx.lineTo(canvas.width, y - camY);
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.arc(arena.x - camX, arena.y - camY, arena.radius, 0, Math.PI * 2);
+                ctx.fillStyle = "#120e21";
+                ctx.fill();
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = "#ff007f";
+                ctx.stroke();
+                ctx.closePath();
+
+                let aliveEnemies = 0;
+
+                entities.forEach((e) => {
+                    e.update();
+                    e.draw(camX, camY);
+                    if (!e.isPlayer && e.alive) aliveEnemies++;
+                });
+
+                handleCollisions();
+                enemiesUI.textContent = aliveEnemies;
+
+                if (aliveEnemies === 0 && player.alive) {
+                    alert("Победа! Вы выкинули всех соперников!");
+                    resetGame();
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        resetGame();
+        gameLoop();
+    </script>
+</body>
+</html>
