@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shove.io — Мемная Битва</title>
+    <title>Царь горы</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body, html { width: 100%; height: 100%; overflow: hidden; background: #09070f; font-family: Arial, sans-serif; touch-action: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #020004; font-family: Arial, sans-serif; touch-action: none; }
         #ui {
             position: fixed; top: 15px; left: 50%; transform: translateX(-50%); z-index: 10;
             display: flex; gap: 20px; background: rgba(23, 20, 38, 0.9); padding: 10px 20px;
             border-radius: 30px; border: 2px solid #ff007f; box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
             font-size: 16px; font-weight: bold; white-space: nowrap; color: #fff;
+        }
+        #version-badge {
+            position: fixed; top: 15px; left: 15px; z-index: 15;
+            background: rgba(0, 255, 204, 0.15); border: 1px solid #00ffcc;
+            color: #00ffcc; padding: 4px 10px; border-radius: 8px;
+            font-size: 12px; font-weight: bold; letter-spacing: 0.5px;
         }
         canvas { display: block; width: 100vw; height: 100vh; }
         #shop-btn {
@@ -35,6 +41,8 @@
     </style>
 </head>
 <body>
+    <div id="version-badge">v2 · ЦАРЬ ГОРЫ</div>
+
     <div id="ui">
         <div>Враги: <span id="enemiesCount">0</span> 👾</div>
         <div>Монеты: <span id="coins">0</span> 💰</div>
@@ -51,6 +59,8 @@
     <canvas id="gameCanvas"></canvas>
 
     <script>
+        console.log("=== ЦАРЬ ГОРЫ v2 загружен ===");
+
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
         const enemiesUI = document.getElementById("enemiesCount");
@@ -74,6 +84,50 @@
         let floaters = [];
         let shake = 0;
         let time = 0;
+
+        let audioCtx = null;
+        let lastFallSoundTime = 0;
+
+        function initAudio() {
+            if (audioCtx) {
+                if (audioCtx.state === "suspended") audioCtx.resume();
+                return;
+            }
+            try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+            catch (e) {}
+        }
+
+        function playFallSound() {
+            const now = performance.now();
+            if (now - lastFallSoundTime < 350) return;
+            lastFallSoundTime = now;
+
+            if (audioCtx) {
+                const t = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(1500, t);
+                osc.frequency.exponentialRampToValueAtTime(90, t + 1.3);
+                gain.gain.setValueAtTime(0.10, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 1.4);
+            }
+
+            if ("speechSynthesis" in window) {
+                try {
+                    const u = new SpeechSynthesisUtterance("аааааааа");
+                    u.pitch = 2;
+                    u.rate = 1.6;
+                    u.volume = 0.35;
+                    u.lang = "ru-RU";
+                    speechSynthesis.speak(u);
+                } catch (e) {}
+            }
+        }
 
         const skins = [
             { id: "default", name: "🟢 Огурец", color: "#00ffcc", price: 0, emoji: "🟢" },
@@ -144,11 +198,13 @@
                         coinsUI.textContent = coins;
                         updateShopUI();
                         if (player && Math.hypot(this.x - player.x, this.y - player.y) < 220) shake = Math.max(shake, 6);
+                        playFallSound();
                     } else {
                         spawnBurst(this.x, this.y, "#00ffcc", 45, 10);
                         spawnRing(this.x, this.y, "#00ffcc", 90);
-                        spawnFloater(this.x, this.y, "ТЕБЯ СТОЛКНУЛИ!", "#ff3366");
+                        spawnFloater(this.x, this.y, "ААААААА!", "#ff3366");
                         shake = 18;
+                        playFallSound();
                         setTimeout(() => resetGame(), 1200);
                     }
                 }
@@ -164,7 +220,6 @@
                 if (this.isPlayer) {
                     const pulse = 1 + Math.sin(time * 0.15) * 0.12;
 
-                    // Пульсирующее золотое кольцо
                     ctx.beginPath();
                     ctx.arc(0, 0, (this.radius + 12) * pulse, 0, Math.PI * 2);
                     ctx.strokeStyle = "rgba(255, 213, 79, 0.9)";
@@ -174,7 +229,6 @@
                     ctx.stroke();
                     ctx.shadowBlur = 0;
 
-                    // Вращающееся белое кольцо
                     ctx.beginPath();
                     ctx.arc(0, 0, this.radius + 18, time * 0.05, time * 0.05 + Math.PI * 1.4);
                     ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
@@ -297,6 +351,121 @@
             }
         }
 
+        function drawMountain(camX, camY) {
+            const cx = arena.x - camX;
+            const cy = arena.y - camY;
+
+            const abyss = ctx.createRadialGradient(cx, cy, arena.radius * 0.8, cx, cy, Math.max(canvas.width, canvas.height) * 0.9);
+            abyss.addColorStop(0, "#100820");
+            abyss.addColorStop(0.4, "#080312");
+            abyss.addColorStop(1, "#010005");
+            ctx.fillStyle = abyss;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < 7; i++) {
+                const angle = (i / 7) * Math.PI * 2 + time * 0.0006;
+                const dist = arena.radius + 160 + i * 40;
+                const mx = cx + Math.cos(angle) * dist;
+                const my = cy + Math.sin(angle) * dist;
+                const mg = ctx.createRadialGradient(mx, my, 0, mx, my, 110);
+                mg.addColorStop(0, "rgba(90, 50, 120, 0.18)");
+                mg.addColorStop(1, "rgba(90, 50, 120, 0)");
+                ctx.fillStyle = mg;
+                ctx.beginPath();
+                ctx.arc(mx, my, 110, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            const cliffOuter = arena.radius + 90;
+            const shadow = ctx.createRadialGradient(cx, cy, cliffOuter - 40, cx, cy, cliffOuter + 50);
+            shadow.addColorStop(0, "rgba(0,0,0,0)");
+            shadow.addColorStop(0.5, "rgba(0,0,0,0.75)");
+            shadow.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = shadow;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cliffOuter + 50, 0, Math.PI * 2);
+            ctx.fill();
+
+            const cliffGrad = ctx.createRadialGradient(cx, cy, arena.radius, cx, cy, cliffOuter);
+            cliffGrad.addColorStop(0, "#4a4458");
+            cliffGrad.addColorStop(0.4, "#353042");
+            cliffGrad.addColorStop(0.8, "#221f2e");
+            cliffGrad.addColorStop(1, "#100e16");
+            ctx.fillStyle = cliffGrad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, cliffOuter, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = "rgba(10, 8, 15, 0.7)";
+            for (let i = 0; i < 40; i++) {
+                const angle = i * 0.157 + Math.sin(i * 13.7) * 0.5;
+                const r1 = arena.radius + 3;
+                const r2 = arena.radius + 30 + Math.abs(Math.sin(i * 5.3)) * 50;
+                ctx.lineWidth = 1 + (i % 2);
+                ctx.beginPath();
+                ctx.moveTo(cx + Math.cos(angle) * r1, cy + Math.sin(angle) * r1);
+                ctx.lineTo(cx + Math.cos(angle + 0.15) * r2, cy + Math.sin(angle + 0.15) * r2);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = "rgba(110, 100, 130, 0.28)";
+            for (let i = 0; i < 16; i++) {
+                const angle = i * 0.42 + Math.sin(i * 7.1) * 0.8;
+                const r = arena.radius + 15 + Math.abs(Math.sin(i * 3.3)) * 55;
+                ctx.beginPath();
+                ctx.arc(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, 4 + (i % 4) * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, arena.radius + 10, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0,0,0,0.65)";
+            ctx.fill();
+
+            const arenaGrad = ctx.createRadialGradient(cx - arena.radius * 0.2, cy - arena.radius * 0.2, 0, cx, cy, arena.radius);
+            arenaGrad.addColorStop(0, "#3a3650");
+            arenaGrad.addColorStop(0.7, "#252236");
+            arenaGrad.addColorStop(1, "#181524");
+            ctx.fillStyle = arenaGrad;
+            ctx.beginPath();
+            ctx.arc(cx, cy, arena.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = "rgba(70, 65, 90, 0.4)";
+            ctx.lineWidth = 1;
+            for (let r = 50; r < arena.radius; r += 70) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2 + 0.3;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(angle) * arena.radius * 0.9, cy + Math.sin(angle) * arena.radius * 0.9);
+                ctx.strokeStyle = "rgba(40, 35, 60, 0.5)";
+                ctx.stroke();
+            }
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, arena.radius, 0, Math.PI * 2);
+            ctx.strokeStyle = "#ff007f";
+            ctx.lineWidth = 6;
+            ctx.shadowColor = "#ff007f";
+            ctx.shadowBlur = 22;
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            ctx.beginPath();
+            ctx.arc(cx, cy, arena.radius - 12, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255, 0, 127, 0.4)";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 12]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
         function handleCollisions() {
             for (let i = 0; i < entities.length; i++) {
                 for (let j = i + 1; j < entities.length; j++) {
@@ -335,14 +504,8 @@
                             else sparkColor = "#ffffff";
 
                             spawnBurst(midX, midY, sparkColor, sparkCount, sparkPower);
-
-                            if (impact > 1.0) {
-                                spawnRing(midX, midY, sparkColor, 20 + impact * 12);
-                            }
-
-                            if (isPlayerInvolved) {
-                                shake = Math.max(shake, Math.min(impact * 2.5, 14));
-                            }
+                            if (impact > 1.0) spawnRing(midX, midY, sparkColor, 20 + impact * 12);
+                            if (isPlayerInvolved) shake = Math.max(shake, Math.min(impact * 2.5, 14));
                         }
 
                         if (isPlayerInvolved && impact > 1.8) {
@@ -371,6 +534,7 @@
         }
 
         window.addEventListener("pointerdown", (e) => {
+            initAudio();
             if (e.target.closest("button")) return;
             isPointerDown = true;
             setInput(e.clientX, e.clientY);
@@ -424,7 +588,7 @@
 
         function gameLoop() {
             time++;
-            ctx.fillStyle = "#09070f";
+            ctx.fillStyle = "#020004";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             if (player) {
@@ -437,27 +601,7 @@
                     shake *= 0.9;
                 } else shake = 0;
 
-                ctx.strokeStyle = "#161224";
-                ctx.lineWidth = 1;
-                const step = 60;
-                const startX = Math.floor(camX / step) * step;
-                const startY = Math.floor(camY / step) * step;
-
-                for (let x = startX; x < camX + canvas.width; x += step) {
-                    ctx.beginPath(); ctx.moveTo(x - camX, 0); ctx.lineTo(x - camX, canvas.height); ctx.stroke();
-                }
-                for (let y = startY; y < camY + canvas.height; y += step) {
-                    ctx.beginPath(); ctx.moveTo(0, y - camY); ctx.lineTo(canvas.width, y - camY); ctx.stroke();
-                }
-
-                ctx.beginPath();
-                ctx.arc(arena.x - camX, arena.y - camY, arena.radius, 0, Math.PI * 2);
-                ctx.fillStyle = "#120e21";
-                ctx.fill();
-                ctx.lineWidth = 6;
-                ctx.strokeStyle = "#ff007f";
-                ctx.stroke();
-                ctx.closePath();
+                drawMountain(camX, camY);
 
                 let aliveEnemies = 0;
                 entities.forEach((e) => {
@@ -473,9 +617,9 @@
                 if (aliveEnemies === 0 && player.alive) {
                     spawnBurst(arena.x, arena.y, "#00ffcc", 60, 12);
                     spawnRing(arena.x, arena.y, "#00ffcc", 120);
-                    spawnFloater(arena.x, arena.y - 60, "ПОБЕДА!", "#00ffcc");
+                    spawnFloater(arena.x, arena.y - 60, "ЦАРЬ ГОРЫ!", "#00ffcc");
                     shake = 12;
-                    setTimeout(() => { alert("Победа! Вы выкинули всех соперников!"); resetGame(); }, 150);
+                    setTimeout(() => { alert("Победа! Ты — Царь горы!"); resetGame(); }, 150);
                 }
             }
 
